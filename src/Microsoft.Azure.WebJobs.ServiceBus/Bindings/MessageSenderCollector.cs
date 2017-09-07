@@ -34,15 +34,14 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.Bindings
 
         public void Add(T item)
         {
-            BrokeredMessage message = _converter.Convert(item);
+            var message = _converter.Convert(item);
 
             if (message == null)
             {
                 throw new InvalidOperationException("Cannot enqueue a null brokered message instance.");
             }
 
-            _entity.SendAndCreateEntityIfNotExistsAsync(message, _functionInstanceId,
-                CancellationToken.None).GetAwaiter().GetResult();
+            _entity.SendAndCreateEntityIfNotExistsAsync(message, _functionInstanceId, CancellationToken.None).GetAwaiter().GetResult();
         }
     }
 }

@@ -2,11 +2,9 @@
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Concurrent;
 using System.Globalization;
-using Microsoft.Azure.WebJobs.Host;
-using Microsoft.Azure.ServiceBus;
 using Microsoft.Azure.ServiceBus.Core;
+using Microsoft.Azure.WebJobs.Host;
 
 namespace Microsoft.Azure.WebJobs.ServiceBus
 {
@@ -19,11 +17,6 @@ namespace Microsoft.Azure.WebJobs.ServiceBus
         private readonly ServiceBusConfiguration _config;
 
         /// <summary>
-        /// Cache of <see cref="MessagingFactory"/> instances by connection string.
-        /// </summary>
-        private readonly ConcurrentDictionary<string, MessagingFactory> _messagingFactoryCache = new ConcurrentDictionary<string, MessagingFactory>();
-
-        /// <summary>
         /// Constructs a new instance.
         /// </summary>
         /// <param name="config">The <see cref="ServiceBusConfiguration"/>.</param>
@@ -34,35 +27,6 @@ namespace Microsoft.Azure.WebJobs.ServiceBus
                 throw new ArgumentNullException("config");
             }
             _config = config;
-        }
-
-        /// <summary>
-        /// Creates a <see cref="MessagingFactory"/> for the specified ServiceBus entity.
-        /// </summary>
-        /// <param name="entityPath">The ServiceBus entity to create a <see cref="MessagingFactory"/> for.</param>
-        /// <param name="connectionStringName">Optional connection string name indicating the connection string to use.
-        /// If null, the default connection string on the <see cref="ServiceBusConfiguration"/> will be used.</param>
-        /// <returns>A <see cref="MessagingFactory"/>.</returns>
-        /// <remarks>For performance reasons, factories are cached per connection string.</remarks>
-        public virtual MessagingFactory CreateMessagingFactory(string entityPath, string connectionStringName = null)
-        {
-            if (string.IsNullOrEmpty(entityPath))
-            {
-                throw new ArgumentNullException("entityPath");
-            }
-
-            string connectionString = GetConnectionString(connectionStringName);
-
-            // We cache messaging factories per entity/connection, in accordance with ServiceBus
-            // performance guidelines.
-            // https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-performance-improvements
-            string cacheKey = $"{entityPath}-{connectionString}";
-            var messagingFactory = _messagingFactoryCache.GetOrAdd(cacheKey, (p) =>
-            {
-                return MessagingFactory.CreateFromConnectionString(connectionString);
-            });
-
-            return messagingFactory;
         }
 
         /// <summary>

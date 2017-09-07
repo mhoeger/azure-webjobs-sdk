@@ -4,6 +4,7 @@
 using System;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Azure.ServiceBus;
+using System.Threading.Tasks;
 
 namespace Microsoft.Azure.WebJobs.ServiceBus
 {
@@ -21,7 +22,10 @@ namespace Microsoft.Azure.WebJobs.ServiceBus
         /// </summary>
         public ServiceBusConfiguration()
         {
-            MessageOptions = new MessageHandlerOptions
+            // TODO: Determine correct default exception handler
+            Func<ExceptionReceivedEventArgs, Task> exceptionReceivedHandler = (args) => { return Task.CompletedTask; };
+
+            MessageOptions = new MessageHandlerOptions(exceptionReceivedHandler)
             {
                 MaxConcurrentCalls = 16
             };

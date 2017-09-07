@@ -67,8 +67,7 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.Bindings
 
             ServiceBusAccount account = new ServiceBusAccount
             {
-                MessagingFactory = _config.MessagingProvider.CreateMessagingFactory(queueOrTopicName, attribute.Connection),
-                NamespaceManager = _config.MessagingProvider.CreateNamespaceManager(attribute.Connection)
+                ConnectionString = attribute.Connection
             };
 
             IBinding binding = new ServiceBusBinding(parameter.Name, argumentBinding, account, path, attribute);

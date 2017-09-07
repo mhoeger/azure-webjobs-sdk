@@ -4,11 +4,10 @@
 using System;
 using System.Globalization;
 using System.Threading.Tasks;
+using Microsoft.Azure.ServiceBus.Core;
 using Microsoft.Azure.WebJobs.Host.Bindings;
 using Microsoft.Azure.WebJobs.Host.Converters;
 using Microsoft.Azure.WebJobs.Host.Protocols;
-using Microsoft.Azure.ServiceBus;
-using Microsoft.Azure.ServiceBus.Core;
 
 namespace Microsoft.Azure.WebJobs.ServiceBus.Bindings
 {
@@ -44,9 +43,9 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.Bindings
             context.CancellationToken.ThrowIfCancellationRequested();
 
             string boundQueueName = _path.Bind(context.BindingData);
-            MessageSender messageSender = await _account.MessagingFactory.CreateMessageSenderAsync(boundQueueName);
+            var messageSender = new MessageSender(_account.ConnectionString, boundQueueName);
 
-            ServiceBusEntity entity = new ServiceBusEntity
+            var entity = new ServiceBusEntity
             {
                 Account = _account,
                 MessageSender = messageSender,

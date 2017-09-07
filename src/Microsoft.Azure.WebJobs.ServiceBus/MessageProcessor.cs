@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs.Host.Executors;
 using Microsoft.Azure.ServiceBus;
+using Microsoft.Azure.ServiceBus.Core;
 
 namespace Microsoft.Azure.WebJobs.ServiceBus
 {
@@ -21,21 +22,29 @@ namespace Microsoft.Azure.WebJobs.ServiceBus
         /// <summary>
         /// Constructs a new instance.
         /// </summary>
-        /// <param name="messageOptions">The <see cref="OnMessageOptions"/> to use.</param>
-        public MessageProcessor(MessageHandlerOptions messageOptions)
+        /// <param name="messageReceiver">The <see cref="MessageReceiver"/>.</param>
+        /// <param name="messageOptions">The <see cref="MessageHandlerOptions"/> to use.</param>
+        public MessageProcessor(MessageReceiver messageReceiver, MessageHandlerOptions messageOptions)
         {
+            if (messageReceiver == null)
+            {
+                throw new ArgumentNullException(nameof(messageReceiver));
+            }
             if (messageOptions == null)
             {
-                throw new ArgumentNullException("messageOptions");
+                throw new ArgumentNullException(nameof(messageOptions));
             }
 
+            MessageReceiver = messageReceiver;
             MessageOptions = messageOptions;
         }
 
         /// <summary>
         /// Gets the <see cref="OnMessageOptions"/> that will be used by the <see cref="MessageReceiver"/>.
         /// </summary>
-        public MessageHandlerOptions MessageOptions { get; protected set; }
+        public MessageHandlerOptions MessageOptions { get; }
+
+        protected MessageReceiver MessageReceiver { get; }
 
         /// <summary>
         /// This method is called when there is a new message to process, before the job function is invoked.
@@ -65,13 +74,13 @@ namespace Microsoft.Azure.WebJobs.ServiceBus
                     // AutoComplete is true by default, but if set to false
                     // we need to complete the message
                     cancellationToken.ThrowIfCancellationRequested();
-                    await message.CompleteAsync();
+                    await MessageReceiver.CompleteAsync(message.SystemProperties.LockToken);
                 }
             }
             else
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await message.AbandonAsync();
+                await MessageReceiver.AbandonAsync(message.SystemProperties.LockToken);
             }
         }
     }

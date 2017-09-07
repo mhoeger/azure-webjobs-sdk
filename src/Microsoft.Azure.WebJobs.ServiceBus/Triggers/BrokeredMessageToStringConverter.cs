@@ -7,7 +7,6 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Azure.WebJobs.Host.Converters;
 using Microsoft.Azure.ServiceBus;
 
 namespace Microsoft.Azure.WebJobs.ServiceBus.Triggers
@@ -20,7 +19,7 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.Triggers
             {
                 throw new ArgumentNullException("input");
             }
-            Stream stream = input.GetBody<Stream>();
+            Stream stream = new MemoryStream(input.Body);
             if (stream == null)
             {
                 return null;

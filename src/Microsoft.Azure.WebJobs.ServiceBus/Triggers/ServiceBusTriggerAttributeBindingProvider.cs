@@ -17,7 +17,7 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.Triggers
         private static readonly IQueueTriggerArgumentBindingProvider InnerProvider =
             new CompositeArgumentBindingProvider(
                 new ConverterArgumentBindingProvider<Message>(
-                    new AsyncConverter<BrokeredMessage, Message>(new IdentityConverter<Message>())),
+                    new AsyncConverter<Message, Message>(new IdentityConverter<Message>())),
                 new ConverterArgumentBindingProvider<string>(new BrokeredMessageToStringConverter()),
                 new ConverterArgumentBindingProvider<byte[]>(new BrokeredMessageToByteArrayConverter()),
                 new UserTypeArgumentBindingProvider()); // Must come last, because it will attempt to bind all types.
@@ -69,7 +69,7 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.Triggers
             {
                 topicName = Resolve(attribute.TopicName);
                 subscriptionName = Resolve(attribute.SubscriptionName);
-                entityPath = SubscriptionClient.FormatSubscriptionPath(topicName, subscriptionName);
+                entityPath = EntityNameHelper.FormatSubscriptionPath(topicName, subscriptionName);
             }
 
             ITriggerDataArgumentBinding<Message> argumentBinding = InnerProvider.TryCreate(parameter);
@@ -80,7 +80,6 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.Triggers
 
             ServiceBusAccount account = new ServiceBusAccount
             {
-                MessagingFactory = _config.MessagingProvider.CreateMessagingFactory(entityPath, attribute.Connection),
             };
 
             ITriggerBinding binding;

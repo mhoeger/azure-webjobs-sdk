@@ -22,10 +22,12 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.Listeners
             _config = config;
         }
 
-        public async Task<IListener> CreateAsync(CancellationToken cancellationToken)
+        public Task<IListener> CreateAsync(CancellationToken cancellationToken)
         {
-            ServiceBusTriggerExecutor triggerExecutor = new ServiceBusTriggerExecutor(_executor);
-            return new ServiceBusListener(_messagingFactory, _queueName, triggerExecutor, _config);
+            var triggerExecutor = new ServiceBusTriggerExecutor(_executor);
+            var listener = new ServiceBusListener(_queueName, triggerExecutor, _config);
+
+            return Task.FromResult<IListener>(listener);
         }
     }
 }

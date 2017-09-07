@@ -44,7 +44,7 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.Triggers
         {
             _topicName = topicName;
             _subscriptionName = subscriptionName;
-            _entityPath = SubscriptionClient.FormatSubscriptionPath(topicName, subscriptionName);
+            _entityPath = EntityNameHelper.FormatSubscriptionPath(topicName, subscriptionName);
         }
 
         private ServiceBusTriggerBinding(string parameterName, Type parameterType, ITriggerDataArgumentBinding<Message> argumentBinding, 
@@ -159,7 +159,7 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.Triggers
             var bindingData = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
             SafeAddValue(() => bindingData.Add(nameof(value.SystemProperties.DeliveryCount), value.SystemProperties.DeliveryCount));
-            SafeAddValue(() => bindingData.Add(nameof(value.DeadLetterSource), value.DeadLetterSource));
+            SafeAddValue(() => bindingData.Add(nameof(value.SystemProperties.DeadLetterSource), value.SystemProperties.DeadLetterSource));
             SafeAddValue(() => bindingData.Add(nameof(value.ExpiresAtUtc), value.ExpiresAtUtc));
             SafeAddValue(() => bindingData.Add(nameof(value.SystemProperties.EnqueuedTimeUtc), value.SystemProperties.EnqueuedTimeUtc));
             SafeAddValue(() => bindingData.Add(nameof(value.MessageId), value.MessageId));
