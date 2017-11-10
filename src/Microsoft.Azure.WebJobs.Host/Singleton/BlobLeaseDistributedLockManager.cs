@@ -17,6 +17,13 @@ using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Azure.WebJobs.Host
 {
+    // TODO - need to properly plumb the SAS string through the configuration. 
+    public class SasConfig
+    {
+
+        public static string SaSConnection;
+    }
+
     // Provides a blob-leased based implementation 
     internal class BlobLeaseDistributedLockManager : IDistributedLockManager
     {
@@ -108,13 +115,26 @@ namespace Microsoft.Azure.WebJobs.Host
             IStorageBlobDirectory storageDirectory = null;
             if (!_lockDirectoryMap.TryGetValue(accountName, out storageDirectory))
             {
-                Task<IStorageAccount> task = _accountProvider.GetStorageAccountAsync(accountName, CancellationToken.None);
-                IStorageAccount storageAccount = task.Result;
-                // singleton requires block blobs, cannot be premium
-                storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
-                IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
-                storageDirectory = blobClient.GetContainerReference(HostContainerNames.Hosts)
-                                       .GetDirectoryReference(HostDirectoryNames.SingletonLocks);
+                IStorageBlobContainer container;
+
+                if (SasConfig.SaSConnection != null)
+                {
+                    // Get the Cointainer via a SAS URL 
+                    var uri = new Uri(SasConfig.SaSConnection);
+                    var container2 = new CloudBlobContainer(uri);
+                    container = new StorageBlobContainer(null, container2);
+                }
+                else
+                {
+                    // Get the container via a full conneciton string 
+                    Task<IStorageAccount> task = _accountProvider.GetStorageAccountAsync(accountName, CancellationToken.None);
+                    IStorageAccount storageAccount = task.Result;
+                    // singleton requires block blobs, cannot be premium
+                    storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
+                    IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
+                    container = blobClient.GetContainerReference(HostContainerNames.Hosts);
+                }
+                storageDirectory = container.GetDirectoryReference(HostDirectoryNames.SingletonLocks);
                 _lockDirectoryMap[accountName] = storageDirectory;
             }
 
