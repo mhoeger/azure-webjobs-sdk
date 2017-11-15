@@ -292,6 +292,12 @@ namespace Microsoft.Azure.WebJobs.Host
             }
         }
 
+        public string[] CheckBindingErrors(Attribute attribute, Type type)
+        {
+            // $$$ implement this
+            return new string[0];
+        }
+
         public FunctionMetadata GetFunctionMetadata(string functionName)
         {
             FunctionMetadata result = null;

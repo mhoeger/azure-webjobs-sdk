@@ -67,5 +67,7 @@ namespace Microsoft.Azure.WebJobs.Host
         /// <param name="functionName">Name of function to return metadata for.</param>
         /// <returns></returns>
         FunctionMetadata GetFunctionMetadata(string functionName);
+
+        string[] CheckBindingErrors(Attribute attribute, Type type);
     }
 }
