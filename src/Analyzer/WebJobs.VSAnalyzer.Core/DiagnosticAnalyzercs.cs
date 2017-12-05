@@ -125,12 +125,31 @@ namespace MyAnalyzer
             Init();
         }
 
+        static void AddAsm(Assembly a)
+        {
+            _asms[a.GetName().Name] = a;
+        }
 
         static void Init()
         {
             //var a = typeof(JobHostConfiguration).Assembly;
             //_asms[a.GetName().Name] = a;
+            AddAsm(typeof(ValidationAttribute).Assembly); // Resolve to our copy since we reflect over it.
         }
+
+        private Dictionary<string, string> _asmLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "netstandard", "netstandard.dll" },
+            { "Microsoft.WindowsAzure.Storage",  "Microsoft.WindowsAzure.Storage.dll" },
+            
+            //  This VS Proj refers to : System.ComponentModel.*Data*Annotations
+            // C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.1\System.ComponentModel.DataAnnotations.dll
+            // But the extensions refer to:
+            //   System.ComponentModel.Annotations
+            // C:\Program Files\dotnet\sdk\NuGetFallbackFolder\system.componentmodel.annotations\4.4.0\ref\netstandard2.0\System.ComponentModel.Annotations.dll
+
+            // { "System.ComponentModel.Annotations", "System.ComponentModel.Annotations.dll" }            
+        };
 
         private Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
         {
@@ -142,15 +161,26 @@ namespace MyAnalyzer
                 return a;
             }
 
+            // $$$
+            // Microsoft.WindowsAzure.Storage !!!  is in the .Core directory, but not in the .VSIX directory 
+
             // $$$ Super hack. 
             // The VS Build system copies the files (notably netstandard.dll) to the build's \bin\debug output. 
             // But it does not get copied at runtime. 
-            var path = @"C:\dev\afunc\core\azure-webjobs-sdk\src\Analyzer\WebJobs.VSAnalyzer.Vsix\bin\Debug\" + name.Name + ".dll";
-            if (System.IO.File.Exists(path))
+            string dllName;
+            if (_asmLookup.TryGetValue(name.Name, out dllName))
             {
-                a = Assembly.LoadFrom(path);
-                _asms[a.GetName().Name] = a;
-                return a;
+                //var path = @"C:\dev\afunc\core\azure-webjobs-sdk\src\Analyzer\WebJobs.VSAnalyzer.Vsix\bin\Debug\" + dllName;
+                //var path = @"C:\dev\afunc\core\azure-webjobs-sdk\src\Analyzer\WebJobs.VSAnalyzer.Core\bin\Debug\" + dllName;
+
+                var path = @"C:\dev\afunc\core\azure-webjobs-sdk\src\Microsoft.Azure.WebJobs.Host\bin\Debug\netstandard2.0\publish\" + dllName;
+
+                if (System.IO.File.Exists(path))
+                {
+                    a = Assembly.LoadFrom(path);
+                    _asms[a.GetName().Name] = a;
+                    return a;
+                }
             }
 
             return null;
