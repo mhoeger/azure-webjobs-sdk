@@ -65,20 +65,57 @@ namespace Microsoft.Azure.WebJobs.Host.Bindings
 
         public IEnumerable<BindingRule> GetRules()
         {
+            // $$$ Specify that access must be present (non-null)
+           // Once we have a BindToStream rule, we shouldn't need this. 
+           // https://github.com/Azure/azure-webjobs-sdk/issues/1001 
             foreach (var type in new Type[]
             {
                 typeof(Stream),
+            })
+            {
+                yield return new BindingRule
+                {
+                    SourceAttribute = typeof(BlobAttribute),
+                    Filter = "(access != null)",
+                    UserType = OpenType.FromType(type)
+                };
+            }
+
+            // Read 
+            foreach (var filter in new string[]
+            {
+                "(access == Read)",
+                "(access == null)", // Not write 
+            })
+            {
+                foreach (var type in new Type[]
+                {
                 typeof(TextReader),
-                typeof(TextWriter),
                 typeof(string),
-                typeof(byte[]),
+                typeof(byte[])
+                })
+                {
+                    yield return new BindingRule
+                    {
+                        Filter = filter,
+                        SourceAttribute = typeof(BlobAttribute),
+                        UserType = OpenType.FromType(type)
+                    };
+                }
+            }
+
+            // Write 
+            foreach (var type in new Type[]
+            {
+                typeof(TextWriter),
                 typeof(string).MakeByRefType(),
                 typeof(byte[]).MakeByRefType()
             })
             {
                 yield return new BindingRule
                 {
-                    SourceAttribute = typeof(TAttribute),
+                    Filter = "(access == Write)",
+                    SourceAttribute = typeof(BlobAttribute),
                     UserType = OpenType.FromType(type)
                 };
             }

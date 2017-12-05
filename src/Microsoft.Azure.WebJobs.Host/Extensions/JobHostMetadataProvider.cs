@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using Microsoft.Azure.WebJobs.Description;
 using Microsoft.Azure.WebJobs.Host.Bindings;
@@ -292,10 +293,133 @@ namespace Microsoft.Azure.WebJobs.Host
             }
         }
 
-        public string[] CheckBindingErrors(Attribute attribute, Type type)
+        private static bool ApplyFilter(Attribute attribute, string filter)
         {
-            // $$$ implement this
-            return new string[0];
+            if (filter == null)
+            {
+                return true;
+            }
+
+            var attributeType = attribute.GetType();
+                        
+            // ({0} == null)
+            // ({0} != null)
+            var parts = filter.Split(new string[] { " && " }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var part in parts)
+            {
+                var inner = part.Substring(1, part.Length - 2); // Remove  ( ) 
+
+                var terms = inner.Split(' ');
+                var name = terms[0];
+                var op = terms[1];
+                var filterStr = terms[2].ToLower();
+
+                bool opEquals = op == "=="; // Either == or != 
+
+                var prop = attributeType.GetProperty(name, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+                if (prop == null)
+                {
+                    // We already did an attribute match, so the property should exist. 
+                    // Something is broken here, so abort. 
+                    return false;
+                }
+                var val = prop.GetValue(attribute); // actual value in the attribute
+
+                bool isEqualToFilterVal;
+
+                if (filterStr == "null")
+                {
+                    isEqualToFilterVal = (val == null);
+                }
+                else
+                {
+                    if (val == null)
+                    {
+                        isEqualToFilterVal = false;
+                    }
+                    else
+                    {
+                        isEqualToFilterVal = string.Equals(filterStr, val.ToString(), StringComparison.OrdinalIgnoreCase);
+                    }
+                }
+                
+                if (opEquals)
+                {
+                    if (!isEqualToFilterVal)
+                    {
+                        return false;
+                    }
+                } else
+                {
+                    if (isEqualToFilterVal)
+                    {
+                        return false;
+                    }
+                }            
+            }
+
+            return true;
+        }
+
+        public string[] CheckBindingErrors(Attribute attribute, Type targetType)
+        {
+            if (attribute == null)
+            {
+                throw new ArgumentNullException(nameof(attribute));
+            }
+            if (targetType == null)
+            {
+                throw new ArgumentNullException(nameof(targetType));
+            }
+            var providers = this._root;
+
+            HashSet<string> possible = new HashSet<string>();
+
+            IBindingRuleProvider root = (IBindingRuleProvider)providers;
+            foreach (var rule in root.GetRules())
+            {
+                var attr = rule.SourceAttribute;
+
+                bool attrMatch = attr.FullName == attribute.GetType().FullName;
+                bool typeMatch = rule.UserType.IsMatch(targetType);
+                bool filterMatch = attrMatch && ApplyFilter(attribute, rule.Filter);
+
+                if (attrMatch && filterMatch && typeMatch)
+                {
+                    // Success!
+                    return null;
+                }
+
+                // Doesn't match. Add a possible hint about what would match. 
+                if (typeMatch)
+                {
+                    if (attrMatch)
+                    {
+                        // Filter misatch 
+                        possible.Add($"set {rule.Filter}");
+                    }
+                    else
+                    {
+                        // Possibly use another attribute to bind to this type?
+                        possible.Add($"try [{attr.FullName}]");
+                    }
+                }
+                else
+                {
+                    if (filterMatch && attrMatch)
+                    {
+                        possible.Add(rule.UserType.GetDisplayName());
+                    }
+                    else
+                    {
+                        // Rule is too unrelated 
+                    }
+                }
+            }
+
+            var x = possible.ToArray();
+            Array.Sort(x);
+            return x;
         }
 
         public FunctionMetadata GetFunctionMetadata(string functionName)

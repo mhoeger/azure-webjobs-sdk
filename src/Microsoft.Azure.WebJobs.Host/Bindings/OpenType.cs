@@ -174,7 +174,18 @@ namespace Microsoft.Azure.WebJobs.Host.Bindings
 
             public override bool IsMatch(Type type, OpenTypeMatchContext context)
             {
-                return type == _type;
+                if (type == _type)
+                {
+                    return true;
+                }
+
+                // For tooling, may have have full type identity. 
+                // if (type.Name == _type.Name && type.Namespace == _type.Namespace) $$$
+                if (TypeToString(type) == TypeToString(_type))
+                {
+                    return true;
+                }
+                return false;
             }
 
             internal override string GetDisplayName()
@@ -240,8 +251,12 @@ namespace Microsoft.Azure.WebJobs.Host.Bindings
                 {
                     throw new ArgumentNullException(nameof(context));
                 }
+
+                // $$$ Need to compare across type-systems. 
+                // GetGenericTypeDefinition() on type definitions return s'T' 
+                //if (type.IsGenericType &&  type.GetGenericTypeDefinition() == _outerType) $$$
                 if (type.IsGenericType &&
-                    type.GetGenericTypeDefinition() == _outerType)
+                    (type.GetGenericTypeDefinition().FullName == _outerType.FullName))
                 {
                     var args = type.GetGenericArguments();
 
