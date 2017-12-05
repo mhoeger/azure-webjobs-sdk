@@ -11,7 +11,7 @@ using Microsoft.Azure.WebJobs.Host;
 using System.Text;
 using ClassLibrary1;
 using System.Reflection;
-using System.ComponentModel.DataAnnotations;
+//using System.ComponentModel.DataAnnotations;
 using Microsoft.Azure.WebJobs;
 
 namespace MyAnalyzer
@@ -134,7 +134,7 @@ namespace MyAnalyzer
         {
             //var a = typeof(JobHostConfiguration).Assembly;
             //_asms[a.GetName().Name] = a;
-            AddAsm(typeof(ValidationAttribute).Assembly); // Resolve to our copy since we reflect over it.
+            // AddAsm(typeof(ValidationAttribute).Assembly); // Resolve to our copy since we reflect over it.
         }
 
         private Dictionary<string, string> _asmLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -148,7 +148,7 @@ namespace MyAnalyzer
             //   System.ComponentModel.Annotations
             // C:\Program Files\dotnet\sdk\NuGetFallbackFolder\system.componentmodel.annotations\4.4.0\ref\netstandard2.0\System.ComponentModel.Annotations.dll
 
-            // { "System.ComponentModel.Annotations", "System.ComponentModel.Annotations.dll" }            
+            { "System.ComponentModel.Annotations", "System.ComponentModel.Annotations.dll" }            
         };
 
         private Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
@@ -355,14 +355,30 @@ namespace MyAnalyzer
 
                     // Validate 
                     {
-                        var attrs = propInfo.GetCustomAttributes<ValidationAttribute>();
+                        // var attrs = propInfo.GetCustomAttributes<ValidationAttribute>();
+
+                        var attrs = propInfo.GetCustomAttributes();
 
                         foreach (var attr in attrs)
                         {
                             try
                             {
-                                attr.Validate(value, propInfo.Name);
-                            }
+                                var method = attr.GetType().GetMethod("Validate", new Type[] { typeof(object), typeof(string) });
+                                if (method != null)
+                                {
+                                    // attr.Validate(value, propInfo.Name);
+                                    try
+                                    {
+                                        method.Invoke(attr, new object[] { value, propInfo.Name });
+                                    }
+                                    catch(TargetInvocationException te)
+                                    {
+                                        throw te.InnerException;
+                                    }
+                                }
+
+                                //attr.Validate(value, propInfo.Name);
+                            }                            
                             catch (Exception e)
                             {
 
