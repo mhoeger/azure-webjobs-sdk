@@ -46,44 +46,48 @@ namespace MyAnalyzer
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public class MyAnalyzerAnalyzer : DiagnosticAnalyzer
     {
-        public const string DiagnosticId = "MyAnalyzer";
-
-        // You can change these strings in the Resources.resx file. If you do not want your analyzer to be localize-able, you can use regular strings for Title and MessageFormat.
-        // See https://github.com/dotnet/roslyn/blob/master/docs/analyzers/Localizing%20Analyzers.md for more on localization
-        internal const string Title = "Regex error parsing string argument";
-        internal const string MessageFormat = "Regex error {0}";
-        internal const string Description = "Regex patterns should be syntactically valid.";
-        internal const string Category = "Syntax";
-
-        private static DiagnosticDescriptor Rule = new DiagnosticDescriptor(
-            DiagnosticId,
-            Title,
-            MessageFormat,
+        internal const string Category = "WebJobs";
+                
+        private static DiagnosticDescriptor Rule1 = new DiagnosticDescriptor(
+            "WJ0001",
+            "Illegal binding type",
+            "Can't bind attribute '{0}' to parameter type '{1}'. Possible options are:{2}",
             Category,
             DiagnosticSeverity.Warning,
             isEnabledByDefault: true,
-            description: Description);
+            description: "Description #1");
+
+        private static DiagnosticDescriptor Rule2 = new DiagnosticDescriptor(
+                  "WJ0001",
+                  "Illegal binding type",
+                   "{0} can't be value '{1}': {2}",
+                    Category,
+                  DiagnosticSeverity.Warning,
+                  isEnabledByDefault: true,
+                  description: "Description #2");
 
 
         // $$$ This should be scoped to per-project 
         IJobHostMetadataProvider _tooling;
 
-        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get { return ImmutableArray.Create(Rule); } }
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get { return ImmutableArray.Create(Rule1, Rule2); } }
 
-        public static void Foo()
+        // Test we can load webjobs 
+        public static void VerifyWebJobsLoaded()
         {
             var x = new JobHostConfiguration();
         }
 
         public override void Initialize(AnalysisContext context)
         {
+            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 
-            Foo();
+            VerifyWebJobsLoaded();
 
             // TODO: Consider registering other actions that act on syntax instead of or in addition to symbols
             // See https://github.com/dotnet/roslyn/blob/master/docs/analyzers/Analyzer%20Actions%20Semantics.md for more information
             // context.RegisterSymbolAction(AnalyzeSymbol, SymbolKind.NamedType);
-            context.RegisterSyntaxNodeAction(AnalyzeNode, SyntaxKind.InvocationExpression);
+            //context.RegisterSyntaxNodeAction(AnalyzeNode, SyntaxKind.InvocationExpression);
 
             context.RegisterSyntaxNodeAction(AnalyzeNode2, SyntaxKind.MethodDeclaration);
 
@@ -112,6 +116,44 @@ namespace MyAnalyzer
                 //this._tooling = hostConfig.CreateMetadataProvider();
                 //this._tooling = AssemblyCache.Instance.Tooling;
             }
+        }
+
+        static Dictionary<string, Assembly> _asms = new Dictionary<string, Assembly>();
+
+        static MyAnalyzerAnalyzer()
+        {
+            Init();
+        }
+
+
+        static void Init()
+        {
+            //var a = typeof(JobHostConfiguration).Assembly;
+            //_asms[a.GetName().Name] = a;
+        }
+
+        private Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            var name = new AssemblyName(args.Name);
+
+            Assembly a;
+            if (_asms.TryGetValue(name.Name, out a))
+            {
+                return a;
+            }
+
+            // $$$ Super hack. 
+            // The VS Build system copies the files (notably netstandard.dll) to the build's \bin\debug output. 
+            // But it does not get copied at runtime. 
+            var path = @"C:\dev\afunc\core\azure-webjobs-sdk\src\Analyzer\WebJobs.VSAnalyzer.Vsix\bin\Debug\" + name.Name + ".dll";
+            if (System.IO.File.Exists(path))
+            {
+                a = Assembly.LoadFrom(path);
+                _asms[a.GetName().Name] = a;
+                return a;
+            }
+
+            return null;
         }
 
         private bool IsWebJobsSdk(PortableExecutableReference reference)
@@ -214,14 +256,16 @@ namespace MyAnalyzer
                                 if (errors != null)
                                 {
                                     var sb = new StringBuilder();
-                                    sb.Append($"Can't bind attribute {result.GetType().Name} to parameter type {fakeType.ToString()}. Possible options are:");
                                     foreach (var possible in errors)
                                     {
                                         sb.Append("\n  " + possible);
                                     }
                                     var diagnostic =
-                                        Diagnostic.Create(Rule,
-                                        param.GetLocation(), sb.ToString());
+                                        Diagnostic.Create(Rule1,
+                                        param.GetLocation(), 
+                                        result.GetType().Name,
+                                        fakeType.ToString(), 
+                                        sb.ToString());
 
                                     context.ReportDiagnostic(diagnostic);
                                 }
@@ -293,11 +337,14 @@ namespace MyAnalyzer
                             {
 
                                 // throw new InvalidOperationException($"'{propInfo.Name}' can't be '{value}': {e.Message}");
-                                var msg = $"{propInfo.Name} can't be value '{value}': {e.Message}";
                                 
                                 var diagnostic =
-                                    Diagnostic.Create(Rule,
-                                    arg.GetLocation(), msg);
+                                    Diagnostic.Create(Rule2,
+                                    arg.GetLocation(),
+                                    propInfo.Name,
+                                    value,
+                                    e.Message
+                                    );
 
                                 context.ReportDiagnostic(diagnostic);
                             }
@@ -322,65 +369,6 @@ namespace MyAnalyzer
                 }
             }
             return false;
-        }
-
-        private void AnalyzeNode(SyntaxNodeAnalysisContext context)
-        {
-            var invocationExpr = (InvocationExpressionSyntax)context.Node;
-
-            // Quick syntax tests first. 
-            var memberAccessExpr = invocationExpr.Expression as MemberAccessExpressionSyntax;
-
-            if (memberAccessExpr?.Name.ToString() != "Match")
-                return;
-
-            var memberSymbol = context.SemanticModel.GetSymbolInfo(memberAccessExpr).Symbol as IMethodSymbol;
-
-            if (!memberSymbol?.ToString().StartsWith("System.Text.RegularExpressions.Regex.Match") ?? true)
-                return;
-
-            var argumentList = invocationExpr.ArgumentList as ArgumentListSyntax;
-            if ((argumentList?.Arguments.Count ?? 0) < 2)
-                return;
-
-            var regexLiteral = argumentList.Arguments[1].Expression as LiteralExpressionSyntax;
-            if (regexLiteral == null)
-                return;
-
-            var regexOpt = context.SemanticModel.GetConstantValue(regexLiteral);
-            if (!regexOpt.HasValue)
-                return;
-            var regex = regexOpt.Value as string;
-            if (regex == null)
-                return;
-
-            try
-            {
-                System.Text.RegularExpressions.Regex.Match("", regex);
-            }
-            catch (ArgumentException e)
-            {
-                var diagnostic =
- Diagnostic.Create(Rule,
- regexLiteral.GetLocation(), e.Message);
-
-                context.ReportDiagnostic(diagnostic);
-            }
-        }
-
-        private static void AnalyzeSymbol(SymbolAnalysisContext context)
-        {
-            // TODO: Replace the following code with your own analysis, generating Diagnostic objects for any issues you find
-            var namedTypeSymbol = (INamedTypeSymbol)context.Symbol;
-
-            // Find just those named type symbols with names containing lowercase letters.
-            if (namedTypeSymbol.Name.ToCharArray().Any(char.IsLower))
-            {
-                // For all such symbols, produce a diagnostic.
-                var diagnostic = Diagnostic.Create(Rule, namedTypeSymbol.Locations[0], namedTypeSymbol.Name);
-
-                context.ReportDiagnostic(diagnostic);
-            }
         }
     }
 }
