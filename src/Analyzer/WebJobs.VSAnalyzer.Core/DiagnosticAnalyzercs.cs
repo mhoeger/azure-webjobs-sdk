@@ -80,7 +80,7 @@ namespace MyAnalyzer
 
         public override void Initialize(AnalysisContext context)
         {
-            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+            // AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 
             VerifyWebJobsLoaded();
 

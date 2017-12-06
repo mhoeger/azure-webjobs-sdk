@@ -86,10 +86,28 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Microsoft.Azure.WebJobs.Host\WebJobs.Host.csproj">
+      <Project>{39554ABE-D7B7-45FF-8D7C-56432ABCDE3D}</Project>
+      <Name>WebJobs.Host</Name>
+      <IncludeOutputGroupsInVSIX>BuiltProjectOutputGroup%3bBuiltProjectOutputGroupDependencies%3bGetCopyToOutputDirectoryItems%3bSatelliteDllsProjectOutputGroup%3b</IncludeOutputGroupsInVSIX>
+      <IncludeOutputGroupsInVSIXLocalOnly>DebugSymbolsProjectOutputGroup%3b</IncludeOutputGroupsInVSIXLocalOnly>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Microsoft.Azure.WebJobs\WebJobs.csproj">
+      <Project>{9d176316-ca11-40f3-a960-1adc9ad0c460}</Project>
+      <Name>WebJobs</Name>
+    </ProjectReference>
     <ProjectReference Include="..\WebJobs.VSAnalyzer.Core\WebJobs.VSAnalyzer.Core.csproj">
       <Project>{d8d0281f-583f-4ba4-89cd-ecafd6bd22a8}</Project>
       <Name>WebJobs.VSAnalyzer.Core</Name>
+      <IncludeOutputGroupsInVSIX>BuiltProjectOutputGroup%3bBuiltProjectOutputGroupDependencies%3bGetCopyToOutputDirectoryItems%3bSatelliteDllsProjectOutputGroup%3b</IncludeOutputGroupsInVSIX>
+      <IncludeOutputGroupsInVSIXLocalOnly>DebugSymbolsProjectOutputGroup%3b</IncludeOutputGroupsInVSIXLocalOnly>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="netstandard.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="'$(VSToolsPath)' != ''" />
